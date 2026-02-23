@@ -1,0 +1,44 @@
+- name: Run changeLocalRetention.py to Change retention
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    cluster_name: "{{ lookup('env', 'CLUSTER_NAME') | default('cluster_1') }}"
+    user_name: ansible
+    domain: local   # Change to 'myAdDomain.net' for Active Directory
+    n_days: "{{ lookup('env', 'N_DAYS') | default('7') }}"
+      # Add 15 to the user-provided K_DAYS value
+    k_days: "{{ (lookup('env', 'K_DAYS') | default('30') | int) + 14 }}"
+    commit_changes: "{{ lookup('env', 'COMMIT_CHANGES') | default('false') }}"
+
+  tasks:
+    - name: Ensure changeLocalRetention.py is executable
+      file:
+        path: ./changeLocalRetention.py
+        mode: '0755'
+        state: file
+      delegate_to: localhost
+
+    - name: Run changeLocalRetention.py for agent upgrade
+      command: >
+        ./changeLocalRetention.py
+        -v {{ cluster_name }}
+        -u {{ user_name }}
+        -d {{ domain }}
+        -pwd "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        -n {{ n_days }}
+        -k {{ k_days }}
+        -l Protection_Group_list
+        {% if commit_changes | bool %}
+        -x
+        {% endif %}
+        
+                
+      register: retention_output
+      delegate_to: localhost
+    
+    - name: Save retention output to file
+      copy:
+        dest: ./retention_output.txt
+        content: "{{ retention_output.stdout }}"
+      delegate_to: localhost

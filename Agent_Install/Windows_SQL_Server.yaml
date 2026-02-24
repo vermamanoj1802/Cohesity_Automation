@@ -1,0 +1,58 @@
+# => Role: cohesity.cohesity_ansible_role
+# =>
+# => Install Windows agent to a Windows Server running SQL server
+---
+  - hosts: windows # Define the target hosts group
+    # => Please change these variables to connect
+    # => to your Cohesity Cluster
+    vars:
+        var_cohesity_server: cluster1
+        var_cohesity_admin: ansible
+        var_cohesity_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        var_validate_certs: False
+        State: present
+        reboot: true
+        # Define your new credentials for the service
+        new_username: sa-cohesity-sql  # You can pass as an extra var or from env
+        new_password: "{{ lookup('env', 'SQL_PASSWORD') }}"  # You can pass as an extra var or from env
+        
+    gather_facts: yes
+      #  collections:
+      # - cohesity.dataprotect
+    roles:
+      - cohesity.cohesity_ansible_role
+    tasks:
+                 
+        - name: Install Windows agent # Task name
+          cohesity_win_agent:  # Ansible module to manage Cohesity Windows agent
+            cluster: "{{ var_cohesity_server }}"  # Use the defined variable for cluster
+            username: "{{ var_cohesity_admin }}"  # Use the defined variable for username
+            password: "{{ var_cohesity_password }}"  # Use the defined variable for password
+            validate_certs: "{{ var_validate_certs }}"  # Use the defined variable for SSL validation
+            state: present  # Ensure the agent is present
+            install_type: allcbt
+          tags: always
+          register: installed
+
+        - name: Change logon credentials for Cohesity Agent service
+          win_service:
+            name: CohesityAgent  # Name of the service
+            start_mode: auto  # Keep the start mode as 'auto' (you can modify if needed)
+            username: "{{ new_username }}"  # Set new logon username
+            password: "{{ new_password }}"  # Set new logon password
+            state: started  # Ensure the service is running (you can set it to stopped or restarted)
+          register: service_change  # Register result for debugging/logging
+
+        - name: Debug service change result
+          debug:
+            var: service_change
+    # => This reboot will only be triggered if both of the following conditions are true:
+    # => - The registered variable 'installed' returns true when the changed state is queried.
+    # => - The user defined variable 'cohesity_win_agent_reboot' returns as true.
+        - name: Reboot the Hosts after agent modification   # noqa 503
+          win_reboot:
+                reboot_timeout: 180
+          when:
+                - installed.changed
+                - "{{ reboot }}"
+          tags: always

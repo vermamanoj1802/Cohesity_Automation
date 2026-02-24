@@ -1,0 +1,142 @@
+# This is a basic workflow that is manually triggered
+
+name: Re-run_archive_failed_jobs
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Select the cluster to make changes"
+        required: true
+        type: choice
+        options:
+          - cluster1
+          - cluster2
+          - cluster3
+          - cluster4
+        default: cluster1
+      n_days:
+        description: "number of days back to look for snapshots to archive"
+        required: true
+        default: "7"
+      External_Target:
+        description: "External Target Name which holds archives"
+        required: true
+        default: "AWS-WORM-S3"
+      email_to:
+        description: "Recipient email address for Cohesity retention report"
+        required: true
+        default: "your@email.id"
+      commit_changes:
+        description: "Set to 'true' to actually commit changes (adds -c flag)"
+        required: false
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
+      exclude_log:
+        description: "Set to 'true' to exclude log backups (adds -e flag)"
+        required: false
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "true"
+  
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  run-ansible:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, on-premise]
+    
+    env:
+         ANSIBLE_PASSWORD: ${{ secrets.COHESITY_ANSIBLE_USER }}
+         ANSIBLE_WIN_PASSWORD: ${{ secrets.WIN_OS_USER }}
+         N_DAYS: ${{ github.event.inputs.n_days }}
+         Ext_Target: ${{ github.event.inputs.External_Target }}
+         COMMIT_CHANGES: ${{ github.event.inputs.commit_changes }}
+         CLUSTER_NAME: ${{ github.event.inputs.cluster_name }}
+         EXCLUDE_LOG: ${{ github.event.inputs.exclude_log }}
+         
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Install Python dependencies
+      run: |
+          sudo apt install -y python3.10-venv
+          python3 -m venv ansible_env
+          source ansible_env/bin/activate
+          pip3 install --upgrade pip
+          sudo apt update
+          sudo apt install -y python3-pip python3-dev \
+            libkrb5-dev gcc g++ \
+            libssl-dev libffi-dev build-essential
+          
+    - name: Install winrm module explicitly
+      run: |
+          source ansible_env/bin/activate
+          pip3 install ansible pywinrm requests
+      
+    - name: Install Cohesity Role
+      run: ansible-galaxy install cohesity.cohesity_ansible_role
+      
+      
+    - name: Set the correct Python interpreter for Ansible
+      run: |
+        source ansible_env/bin/activate
+        export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+   
+    - name: Configure static DNS servers
+      run: |
+        sudo bash -c 'cat <<EOF > /etc/netplan/50-cloud-init.yaml
+        network:
+            version: 2
+            ethernets:
+                ens5:
+                    dhcp4: true
+                    dhcp6: false
+                    #set-name: ens5
+                    nameservers:
+                      addresses:
+                        - 144.0.0.0
+                        - 192.0.0.0
+        EOF'
+        sudo netplan apply
+        echo "checking netplan"
+        sudo cat /etc/netplan/50-cloud-init.yaml
+        echo "checking resolvectl status"
+        resolvectl status
+        #nslookup addev.company.com #to test dns lookup
+        
+        
+    - name: Archive Failed jobs
+      run: |
+        source ansible_env/bin/activate
+        export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+        ansible-playbook -i Archive/joblist Archive/archive_failed_jobs.yaml
+        cp Archive/archive_status.txt ./
+        
+
+    - name: Send Email for Cohesity Alerts Summary
+      uses: raynigon/sendgrid-mail-action@1.0.5
+      with:
+        sendgrid-token: ${{ secrets.ISD_MAIL_KEY }}
+        from: ${{ vars.ISD_MAIL_FROM }}
+        to: ${{ github.event.inputs.email_to }}
+        subject: "Cohesity archvie status Report"
+        text: |
+            Hello,
+      
+            Please find attached the latest Cohesity archive status report.
+
+            Regards,
+            GitHub Actions
+        attachments: archive_status.txt
+      

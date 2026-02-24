@@ -58,7 +58,7 @@ Follow these simple steps to safely re-run the failed archive jobs.
 1. **Go to** the **Actions** menu and run the **`archive_failed_jobs`** workflow.
 
 2. **Enter the required inputs** as mentioned below (default values are pre-filled; modify them as needed):
-<img width="420" height="795" alt="image" src="https://github.com/user-attachments/assets/3e171a02-2756-4d9b-bf67-6eeab9a02254" />
+<img width="318" height="665" alt="image" src="https://github.com/user-attachments/assets/b9bf7c30-32b2-4f74-bb59-891124699853" />
 
   - **Select the cluster to make changes:**  
      Select the correct cluster from the drop-down list.
@@ -75,10 +75,13 @@ Follow these simple steps to safely re-run the failed archive jobs.
    - **Set to `true` to actually commit changes (adds `-c` flag):**  
      Perform a test run with the default value **`False`** before committing any changes.
      Select the option from dropdown list.
-     <img width="388" height="173" alt="image" src="https://github.com/user-attachments/assets/7b3f3612-e5bb-4943-a701-7603ec17ede8" />
+     
+  <img width="318" height="237" alt="image" src="https://github.com/user-attachments/assets/a8ff32fb-0db5-4422-b895-f1b7848a5d4a" />
+
    - **Set to 'true' to exclude log backups (adds -e flag):**  
      if do not wish to re-run the failed archive jobs for DB log backups, keep it to **`False`**.
      Select the option from dropdown list.
+  <img width="319" height="156" alt="image" src="https://github.com/user-attachments/assets/a8bc91d1-cc8e-445f-9b48-dd70b735e0d3" />
 
 
 ---
@@ -122,8 +125,7 @@ Follow these simple steps to safely re-run the failed archive jobs.
 1. **Go to** the **Actions** menu and run the **`List_Archived_Snapshots`** workflow.
 
 2. **Enter the required inputs** as mentioned below (default values are pre-filled; modify them as needed):
-<img width="328" height="522" alt="image" src="https://github.com/user-attachments/assets/ed00d5bf-ccb8-4a95-92be-274a7fb85aea" />
-
+<img width="319" height="506" alt="image" src="https://github.com/user-attachments/assets/4835689b-9e2a-41a6-8356-0dae17ba0686" />
 
   - **Select the cluster to make changes:**  
      Select the correct cluster from the drop-down list.

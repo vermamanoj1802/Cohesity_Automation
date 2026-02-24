@@ -1,0 +1,47 @@
+- name: Run failed archive jobs
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    cluster_name: "{{ lookup('env', 'CLUSTER_NAME') | default('cluster1') }}"
+    user_name: ansible
+    domain: local   # Change to 'myAdDomain.net' for Active Directory
+    n_days: "{{ lookup('env', 'N_DAYS') | default('7') }}"
+    bucket: "{{ lookup('env', 'Ext_Target') | default('AWS-WORM-S3') }}"
+    commit_changes: "{{ lookup('env', 'COMMIT_CHANGES') | default('false') }}"
+    exc_log: "{{ lookup('env', 'EXCLUDE_LOG') | default('true') }}"
+
+  tasks:
+    - name: Ensure changeLocalRetention.py is executable
+      file:
+        path: ./archiveOldSnapshots.py
+        mode: '0755'
+        state: file
+      delegate_to: localhost
+
+    - name: Run archiveOldSnapshots.py to archive failed jobs
+      command: >
+        ./archiveOldSnapshots.py
+        -v {{ cluster_name }}
+        -u {{ user_name }}
+        -d {{ domain }}
+        -p "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        -t {{ bucket }}
+        -n {{ n_days }}
+        -k 90
+        {% if exc_log | bool %}
+        -e
+        {% endif %}
+        {% if  commit_changes | bool %}
+        -c
+        {% endif %}
+        
+                
+      register: archive_status
+      delegate_to: localhost
+    
+    - name: Save archive status to file
+      copy:
+        dest: ./archive_status.txt
+        content: "{{ archive_status.stdout }}"
+      delegate_to: localhost

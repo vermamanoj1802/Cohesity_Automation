@@ -1,0 +1,54 @@
+- name: Register Windows Source
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Authenticate and Get API Token from Cohesity
+      uri:
+        url: "https://cluster1/irisservices/api/v1/public/accessTokens"
+        method: POST
+        body:
+          domain: "LOCAL"
+          username: "ansible"
+          password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        body_format: json
+        headers:
+          Content-Type: "application/json"
+        return_content: yes
+        status_code: [200, 201]
+        validate_certs: no
+      register: api_response
+
+    - name: Store Access Token in a Variable
+      set_fact:
+        access_token: "{{ api_response.json.accessToken }}"
+
+    - name: Gather Windows hostnames from inventory
+      set_fact:
+        windows_hosts: "{{ groups['windows'] }}"
+
+    - name: Register each Windows host as a source on Cohesity
+      uri:
+        url: "https://cluster1/v2/data-protect/sources/registrations"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          environment: "kPhysical"
+          isInternalEncrypted: false
+          connectionId: 0
+          physicalParams:
+            endpoint: "{{ item }}"
+            hostType: "kWindows"
+            physicalType: "kHost"
+        status_code: [200, 201]
+        validate_certs: no
+      loop: "{{ windows_hosts }}"
+      loop_control:
+        label: "{{ item }}"
+      register: register_results
+
+    - name: Show results of registration
+      debug:
+        var: register_results

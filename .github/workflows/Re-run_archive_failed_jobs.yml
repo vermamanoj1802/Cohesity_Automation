@@ -125,7 +125,7 @@ jobs:
         
 
     - name: Send Email for Cohesity Alerts Summary
-      uses: raynigon/sendgrid-mail-action@1.0.5
+      uses: user/server-mail-action@1.0.5
       with:
         sendgrid-token: ${{ secrets.ISD_MAIL_KEY }}
         from: ${{ vars.ISD_MAIL_FROM }}

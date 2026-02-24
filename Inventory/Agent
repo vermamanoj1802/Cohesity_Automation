@@ -1,0 +1,42 @@
+# INVENTORY FILE FOR AGENT INSTALLATION AND REGISTRATION
+# -------------------------------------------------------
+# This Ansible inventory file is designed to specify hosts and connection parameters
+# for installing and registering Cohesity agents on both Linux and Windows systems.
+# You can add or remove hosts as required for your environment.
+
+# --- HOST GROUP: workstation ---
+# This group is for management workstations used to run Ansible playbooks.
+# Hosts listed here are not necessarily agent targets, but can be used for orchestration.
+
+[workstation]
+server-mgmt.company.com
+
+                        # --- HOST GROUP: windows ---
+                                                                         # This group contains all Windows hosts where the Cohesity agent will be installed.
+                                                                         # Add additional Windows machines here as needed.
+
+[windows]
+win-serv.company.com
+
+
+                        # --- VARIABLES FOR WINDOWS HOSTS ---
+                                                                         # The following variables apply to all hosts in the [windows] group.
+
+[windows:vars]
+type=Windows
+ansible_user=domain\user
+ansible_password={{lookup('env', 'ANSIBLE_WIN_PASSWORD')}}
+ansible_port=5985  
+ansible_connection=winrm
+ansible_winrm_transport=ntlm
+ansible_winrm_server_cert_validation=ignore
+ansible_shell_type=powershell
+ansible_python_interpreter=not_needed
+
+                        
+
+                       # --- NOTES ---
+# - To add more hosts, simply list them under the appropriate group.
+# - For Linux hosts, create a separate group and provide SSH-based connection variables.
+# - Always keep passwords secure—never hard-code them; use environment variables or Ansible Vault.
+# - This file can be used as-is with Ansible commands or referenced in playbooks via the -i flag.

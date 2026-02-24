@@ -1,0 +1,39 @@
+# => Role: cohesity.cohesity_ansible_role
+# =>
+# => Install Windows agent to a Windows Server
+---
+  - hosts: windows # Define the target hosts group
+    # => Please change these variables to connect
+    # => to your Cohesity Cluster
+    vars:
+        var_cohesity_server: cluster1
+        var_cohesity_admin: ansible
+        var_cohesity_password: "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        var_validate_certs: False
+        State: present
+        reboot: true
+        
+    gather_facts: yes
+      #  collections:
+      # - cohesity.dataprotect
+    roles:
+      - cohesity.cohesity_ansible_role
+    tasks:
+        - name: Install Windows agent # Task name
+          cohesity_win_agent:  # Ansible module to manage Cohesity Windows agent
+            cluster: "{{ var_cohesity_server }}"  # Use the defined variable for cluster
+            username: "{{ var_cohesity_admin }}"  # Use the defined variable for username
+            password: "{{ var_cohesity_password }}"  # Use the defined variable for password
+            validate_certs: "{{ var_validate_certs }}"  # Use the defined variable for SSL validation
+            state: present  # Ensure the agent is present
+            install_type: allcbt
+          tags: always
+          register: installed            
+ 
+        - name: Reboot the Hosts after agent modification   # noqa 503
+          win_reboot:
+                reboot_timeout: 180
+          when:
+                - installed.changed
+                - "{{ reboot }}"
+          tags: always          

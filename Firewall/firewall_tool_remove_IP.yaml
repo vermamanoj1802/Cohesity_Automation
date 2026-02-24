@@ -1,0 +1,31 @@
+---
+- name: Resolve hostnames and run firewallTool.py per resolved IP
+  hosts: windows
+  gather_facts: no
+
+  tasks:
+    - name: Perform nslookup and get IP
+      shell: "nslookup {{ inventory_hostname }} | awk '/^Address: / { print $2 }' | tail -n 1"
+      register: nslookup_result
+      delegate_to: localhost
+      changed_when: false
+      
+    - name: Ensure firewallTool.py is executable
+      file:
+        path: ./firewallTool.py
+        mode: '0755'
+        state: file
+      delegate_to: localhost
+      
+    - name: Run firewallTool.py for each resolved IP
+      command: >
+        ./firewallTool.py
+        -v cluster1
+        -u ansible
+        -d local
+        -p Management
+        -pwd "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        -ip {{ nslookup_result.stdout }}
+        -r
+      delegate_to: localhost
+

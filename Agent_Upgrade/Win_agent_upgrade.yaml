@@ -1,0 +1,27 @@
+- name: Run upgradeAgents.py to upgrade agents
+  hosts: windows
+  gather_facts: no
+
+  vars:
+    cluster_name: cluster1
+    user_name: ansible
+    domain: local   # Change to 'myAdDomain.net' for Active Directory
+
+  tasks:
+    - name: Ensure upgradeAgents.py is executable
+      file:
+        path: ./upgradeAgents.py
+        mode: '0755'
+        state: file
+      delegate_to: localhost
+
+    - name: Run upgradeAgents.py for agent upgrade
+      command: >
+        ./upgradeAgents.py
+        -v {{ cluster_name }}
+        -u {{ user_name }}
+        -d {{ domain }}
+        -pwd "{{ lookup('env', 'ANSIBLE_PASSWORD') }}"
+        -o windows
+        -x
+      delegate_to: localhost

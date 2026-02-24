@@ -1,0 +1,140 @@
+# This is a basic workflow that is manually triggered
+
+name: Extend_Local_retention
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: "Select the cluster to make changes"
+        required: true
+        type: choice
+        options:
+          - Cluster1
+          - Cluster2
+          - Cluster3
+          - Cluster4
+        default: Cluster1
+      n_days:
+        description: "Number of days for -n (only process snapshots newer than n days)"
+        required: true
+        default: "7"
+      k_days:
+        description: "Extend retention by how many days"
+        required: true
+        default: "30"
+      email_to:
+        description: "Recipient email address for Cohesity retention report"
+        required: true
+        default: "your@email.id"
+      commit_changes:
+        description: "Set to 'true' to actually commit changes (adds -x flag)"
+        required: false
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  run-ansible:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, on-premise]
+    
+    env:
+         ANSIBLE_PASSWORD: ${{ secrets.COHESITY_ANSIBLE_USER }}
+         ANSIBLE_WIN_PASSWORD: ${{ secrets.WIN_OS_USER }}
+         N_DAYS: ${{ github.event.inputs.n_days }}
+         K_DAYS: ${{ github.event.inputs.k_days }}
+         COMMIT_CHANGES: ${{ github.event.inputs.commit_changes }}
+         CLUSTER_NAME: ${{ github.event.inputs.cluster_name }}
+         
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Install Python dependencies
+      run: |
+          sudo apt install -y python3.10-venv
+          python3 -m venv ansible_env
+          source ansible_env/bin/activate
+          pip3 install --upgrade pip
+          sudo apt update
+          sudo apt install -y python3-pip python3-dev \
+            libkrb5-dev gcc g++ \
+            libssl-dev libffi-dev build-essential
+          
+    - name: Install winrm module explicitly
+      run: |
+          source ansible_env/bin/activate
+          pip3 install ansible pywinrm requests
+      
+    - name: Install Cohesity Role
+      run: ansible-galaxy install cohesity.cohesity_ansible_role
+      
+      
+    - name: Set the correct Python interpreter for Ansible
+      run: |
+        source ansible_env/bin/activate
+        export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+   
+    - name: Configure static DNS servers
+      run: |
+        sudo bash -c 'cat <<EOF > /etc/netplan/50-cloud-init.yaml
+        network:
+            version: 2
+            ethernets:
+                ens5:
+                    dhcp4: true
+                    dhcp6: false
+                    #set-name: ens5
+                    nameservers:
+                      addresses:
+                        - 144.0.0.0
+                        - 192.0.0.0
+        EOF'
+        sudo netplan apply
+        echo "checking netplan"
+        sudo cat /etc/netplan/50-cloud-init.yaml
+        echo "checking resolvectl status"
+        resolvectl status
+        #nslookup addev.company.domain #to test dns lookup
+        
+        
+    - name: Extend Retention
+      run: |
+        source ansible_env/bin/activate
+        export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+        ansible-playbook -i Extend_Retention/Protection_Group_list Extend_Retention/Extend_Local_Retention.yaml
+        cp Extend_Retention/retention_output.txt ./
+        
+    - name: Find latest retention CSV
+      id: find_csv
+      run: |
+        latest_csv=$(ls -t Extend_Retention/retention-*.csv | head -n 1)
+        echo "Found CSV file: $latest_csv"
+        cp "$latest_csv" ./retention_latest.csv
+        echo "csv_name=retention_latest.csv" >> $GITHUB_OUTPUT
+
+
+    - name: Send Email for Cohesity Alerts Summary
+      uses: user/server-mail-action@1.0.5
+      with:
+        sendgrid-token: ${{ secrets.ISD_MAIL_KEY }}
+        from: ${{ vars.ISD_MAIL_FROM }}
+        to: ${{ github.event.inputs.email_to }}
+        subject: "Cohesity Retention Report"
+        text: |
+            Hello,
+      
+            Please find attached the latest Cohesity retention extension report.
+
+            Regards,
+            GitHub Actions
+        attachments: retention_output.txt, ${{ steps.find_csv.outputs.csv_name }}
+      

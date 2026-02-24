@@ -25,4 +25,7 @@ The **add** and **remove** firewall tools are designed to work with an inventory
 2. It fetches the corresponding IP address from DNS.
 3. It adds or removes the server's IP address from the Cohesity Network Firewall management rules.
 
-This process ensures that firewall rules are dynamically managed according to the current server inventory, without requiring manual input of IP addresses.
+**ℹ️This process ensures that firewall rules are dynamically managed according to the current server inventory, without requiring manual input of IP addresses.**
+
+> **Warning:**  
+⚠️These codes are provided on a best effort basis created for specific infra and is not in any way officially supported or sanctioned by Cohesity. The code in this repository are provided as-is and the author accepts no liability for damages resulting from its use.

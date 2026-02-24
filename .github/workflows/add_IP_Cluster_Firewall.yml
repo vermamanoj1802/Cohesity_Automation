@@ -1,0 +1,74 @@
+# This is a basic workflow that is manually triggered
+
+name: Add_IP_to_cluster_Firewall
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  run-ansible:
+    # The type of runner that the job will run on
+    runs-on: [self-hosted, on-premise]
+    env:
+         ANSIBLE_PASSWORD: ${{ secrets.COHESITY_ANSIBLE_USER }}
+         ANSIBLE_WIN_PASSWORD: ${{ secrets.WIN_OS_USER }}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+    - name: Install Python dependencies
+      run: |
+          sudo apt install -y python3.10-venv
+          python3 -m venv ansible_env
+          source ansible_env/bin/activate
+          pip3 install --upgrade pip
+          sudo apt update
+          sudo apt install -y python3-pip python3-dev \
+            libkrb5-dev gcc g++ \
+            libssl-dev libffi-dev build-essential
+          
+    - name: Install winrm module explicitly
+      run: |
+          source ansible_env/bin/activate
+          pip3 install ansible pywinrm requests
+      
+    - name: Install Cohesity Role
+      run: ansible-galaxy install cohesity.cohesity_ansible_role
+      
+    - name: Set the correct Python interpreter for Ansible
+      run: |
+        source ansible_env/bin/activate
+        export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+   
+    - name: Configure static DNS servers
+      run: |
+        sudo bash -c 'cat <<EOF > /etc/netplan/50-cloud-init.yaml
+        network:
+            version: 2
+            ethernets:
+                ens5:
+                    dhcp4: true
+                    dhcp6: false
+                    #set-name: ens5
+                    nameservers:
+                      addresses:
+                        - 144.0.0.0
+                        - 192.0.0.0
+        EOF'
+        sudo netplan apply
+        echo "checking netplan"
+        sudo cat /etc/netplan/50-cloud-init.yaml
+        echo "checking resolvectl status"
+        resolvectl status
+        #nslookup addev.company.com #to test dns lookup
+        
+    - name: add server IPs to Cohesity Firewall
+      run: |
+          source ansible_env/bin/activate
+          export ANSIBLE_PYTHON_INTERPRETER=$(pwd)/ansible_env/bin/python
+          ansible-playbook -i Inventory/Agent Firewall/firewall_tool_add_IP.yaml -vvv  

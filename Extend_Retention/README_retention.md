@@ -37,9 +37,11 @@ Follow these simple steps to safely increase the retention period for your Prote
 
 2. **Enter the required inputs** as mentioned below (default values are pre-filled; modify them as needed):
 
+<img width="325" height="627" alt="image" src="https://github.com/user-attachments/assets/1073cf1c-ff93-4048-8745-222fd09230c4" />
 
    - **Select the cluster to make changes:**
      select the correct cluster from dropdown list.
+<img width="331" height="337" alt="image" src="https://github.com/user-attachments/assets/6883d03f-33e6-457b-adf1-f40e5b0caf22" />
 
    - **Number of days for `-n` (only process snapshots newer than *n* days):**  
      Specify how many snapshots (counting from the latest) you want to extend the retention for.
@@ -57,7 +59,8 @@ Follow these simple steps to safely increase the retention period for your Prote
    - **Set to `true` to actually commit changes (adds `-x` flag):**  
      Perform a test run with the default value **`False`** before committing any changes.
      Select the option from dropdown list.
-  
+  <img width="320" height="164" alt="image" src="https://github.com/user-attachments/assets/dfa23e85-e79e-4a9d-bb04-964c478cb3a5" />
+
 
 
 ---
